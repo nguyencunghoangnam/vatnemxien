@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Mô phỏng Ném Xiên – sửa hiển thị số Ox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    html, body { height: 100%; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e0e7ff 0%, #f0fdf4 100%);
+      font-family: 'Montserrat', Arial, sans-serif;
+    }
+    canvas {
+      background: #f9fafb;
+      border-radius: 1.5rem;
+      box-shadow: 0 2px 24px 0 #0002;
+      margin: 0 auto;
+      display: block;
+      transition: box-shadow 0.2s;
+    }
+    canvas:focus, canvas:hover {
+      box-shadow: 0 4px 32px 0 #6366f1aa;
+    }
+    .form-label {
+      font-weight: 600;
+      color: #4338ca;
+    }
+    .formula-block {
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 1px 8px 0 #0001;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-size: 1.1rem;
+      color: #312e81;
+      line-height: 1.7;
+    }
+    #info, #clickInfo {
+      font-size: 1.08em;
+      line-height: 1.5em;
+    }
+    ::selection { background: #a5b4fc; color: #fff;}
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <main class="w-full max-w-4xl mx-auto p-4 flex flex-col items-center">
+    <div class="text-center mb-5">
+      <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 text-transparent bg-clip-text mb-2 tracking-tight drop-shadow-md select-none">
+        Mô phỏng Vật Ném Xiên
+      </h1>
+      <p class="text-gray-600 text-base md:text-lg font-medium mb-2">Trực quan hóa & kiểm tra các tham số, tọa độ, giao điểm, đỉnh quỹ đạo</p>
+    </div>
+
+    <div id="controls"
+      class="w-full bg-white/90 rounded-2xl shadow-xl border border-indigo-100 p-6 mb-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+      <div class="space-y-2">
+        <label class="form-label block" for="angle">Góc ném (°):</label>
+        <input type="number" id="angle" value="45" class="w-full p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition" min="0" max="89">
+      </div>
+      <div class="space-y-2">
+        <label class="form-label block" for="velocity">Vận tốc ban đầu (m/s):</label>
+        <input type="number" id="velocity" value="30" class="w-full p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition" min="0">
+      </div>
+      <div class="space-y-2">
+        <label class="form-label block" for="height">Độ cao ban đầu y<sub>0</sub> (m):</label>
+        <input type="number" id="height" value="0" class="w-full p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+      </div>
+      <div class="flex space-x-2 items-end">
+        <div>
+          <label class="form-label" for="xMin">View x:</label>
+          <input type="number" id="xMin" value="0" class="w-20 p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+        </div>
+        <span class="text-gray-400">→</span>
+        <div>
+          <label class="form-label" for="xMax">đến:</label>
+          <input type="number" id="xMax" value="100" class="w-20 p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+        </div>
+        <span class="text-gray-400 ml-2">|</span>
+        <div>
+          <label class="form-label" for="yMin">View y:</label>
+          <input type="number" id="yMin" value="0" class="w-20 p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+        </div>
+        <span class="text-gray-400">→</span>
+        <div>
+          <label class="form-label" for="yMax">đến:</label>
+          <input type="number" id="yMax" value="50" class="w-20 p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+        </div>
+      </div>
+      <div class="flex items-end space-x-2">
+        <label class="form-label" for="xValue">Thay x:</label>
+        <input type="number" id="xValue" value="10" class="w-24 p-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-400 transition">
+        <button onclick="computeY()" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow transition">
+          Tính y tại x
+        </button>
+        <span id="yValue" class="ml-2 text-emerald-700 font-semibold"></span>
+      </div>
+      <div class="flex items-end space-x-3">
+        <button onclick="startSimulation()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-xl shadow transition text-lg">
+          ▶ Bắt đầu
+        </button>
+      </div>
+    </div>
+
+    <div id="formula" class="formula-block w-full text-center mb-2">
+      Dựa vào công thức:<br>
+      $$ y = -\frac{g\,x^{2}}{2\,v_{0}^{2}\cos^{2}\alpha} + (\tan\alpha)\,x + y_{0} $$
+    </div>
+    <div id="formulaConcrete" class="formula-block w-full text-center text-lg bg-indigo-50"></div>
+
+    <div class="relative w-full flex justify-center mb-4">
+      <canvas id="canvas" width="800" height="420" tabindex="0"></canvas>
+    </div>
+
+    <div id="info" class="w-full text-center mt-2 text-indigo-700 font-semibold"></div>
+    <div id="clickInfo" class="w-full text-center mt-1 text-sky-700"></div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const g = 9.8;
+
+    let angle, velocity, y0, vx, vy;
+    let xMin, xMax, yMin, yMax;
+    let scaleX, scaleY;
+    let A, B;
+    let interval;
+
+    function drawAxes() {
+      ctx.save();
+      ctx.strokeStyle = "#444";
+      ctx.fillStyle = "#3b82f6";
+      ctx.lineWidth = 1.4;
+
+      // Ox (trục x, y=0)
+      if (0 >= yMin && 0 <= yMax) {
+        const yZero = canvas.height - (0 - yMin) * scaleY;
+        ctx.beginPath();
+        ctx.moveTo(0, yZero);
+        ctx.lineTo(canvas.width, yZero);
+        ctx.stroke();
+
+        // vạch chia Ox
+        const stepX = (xMax - xMin) / 10;
+        ctx.font = '13px Montserrat, Arial';
+        ctx.fillStyle = "#6366f1";
+        for (let x = Math.ceil(xMin / stepX) * stepX; x <= xMax; x += stepX) {
+          const dx = (x - xMin) * scaleX;
+          ctx.beginPath();
+          ctx.moveTo(dx, yZero - 6);
+          ctx.lineTo(dx, yZero + 6);
+          ctx.stroke();
+          // hiển thị ở trên nếu trùng đáy, ngược lại hiển thị dưới
+          const textY = (yZero > canvas.height - 24) ? yZero - 10 : yZero + 19;
+          ctx.fillText(x.toFixed(1), dx + 2, textY);
+        }
+      }
+
+      // Oy (trục y, x=0)
+      if (0 >= xMin && 0 <= xMax) {
+        const xZero = (0 - xMin) * scaleX;
+        ctx.beginPath();
+        ctx.moveTo(xZero, 0);
+        ctx.lineTo(xZero, canvas.height);
+        ctx.stroke();
+
+        // vạch chia Oy
+        const stepY = (yMax - yMin) / 10;
+        ctx.font = '13px Montserrat, Arial';
+        ctx.fillStyle = "#22c55e";
+        for (let y = Math.ceil(yMin / stepY) * stepY; y <= yMax; y += stepY) {
+          const dy = canvas.height - (y - yMin) * scaleY;
+          ctx.beginPath();
+          ctx.moveTo(xZero - 6, dy);
+          ctx.lineTo(xZero + 6, dy);
+          ctx.stroke();
+          if (Math.abs(y) > 1e-6) ctx.fillText(y.toFixed(1), xZero + 10, dy - 2);
+        }
+      }
+      ctx.restore();
+    }
+
+    function startSimulation() {
+      clearInterval(interval);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180;
+      velocity = parseFloat(document.getElementById('velocity').value);
+      y0 = parseFloat(document.getElementById('height').value);
+      xMin = parseFloat(document.getElementById('xMin').value);
+      xMax = parseFloat(document.getElementById('xMax').value);
+      yMin = parseFloat(document.getElementById('yMin').value);
+      yMax = parseFloat(document.getElementById('yMax').value);
+
+      const xRange = xMax - xMin;
+      const yRange = yMax - yMin;
+
+      scaleX = canvas.width / xRange;
+      scaleY = canvas.height / yRange;
+
+      vx = velocity * Math.cos(angle);
+      vy = velocity * Math.sin(angle);
+
+      B = Math.tan(angle);
+      const cosA2 = Math.pow(Math.cos(angle), 2);
+      const denom = 2 * Math.pow(velocity, 2) * cosA2;
+      A = g / denom;
+      const aQuad = -A;
+
+      // Hiển thị công thức cụ thể
+      const formulaConcrete = 'Ta có phương trình:<br>$$ y = -' + A.toFixed(5) + 'x^2 + ' + B.toFixed(3) + 'x + ' + y0 + ' $$';
+      document.getElementById('formulaConcrete').innerHTML = formulaConcrete;
+      MathJax.typeset();
+
+      // Tính giao điểm và đỉnh
+      const discriminant = B*B - 4*aQuad*y0;
+      let rootsText = "<span class='text-gray-400'>Không có giao điểm với trục Ox</span>";
+      if (discriminant >= 0) {
+        const sqrtD = Math.sqrt(discriminant);
+        const x1 = (-B + sqrtD) / (2*aQuad);
+        const x2 = (-B - sqrtD) / (2*aQuad);
+        rootsText = `<span class="text-indigo-700">Giao điểm Ox:</span> <span class="font-mono text-indigo-600">x₁ = ${x1.toFixed(2)}</span>, <span class="font-mono text-indigo-600">x₂ = ${x2.toFixed(2)}</span>`;
+      }
+      const xv = B / (2*A);
+      const yv = -A*xv*xv + B*xv + y0;
+      const infoHTML = `<span class="text-emerald-700">Tọa độ đỉnh</span> (<span class="font-mono">x<sub>v</sub></span>, <span class="font-mono">y<sub>v</sub></span>) = (<span class="font-mono">${xv.toFixed(2)}</span>, <span class="font-mono">${yv.toFixed(2)}</span>)<br>${rootsText}`;
+      document.getElementById('info').innerHTML = infoHTML;
+
+      // Vẽ trục và vạch đơn vị
+      drawAxes();
+
+      // Mặt đất (nếu chưa trùng trục)
+      if (!(0 >= yMin && 0 <= yMax)) {
+        const groundY = canvas.height - (0 - yMin) * scaleY;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(canvas.width, groundY);
+        ctx.strokeStyle = "#059669";
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Quỹ đạo vật
+      ctx.save();
+      ctx.strokeStyle = "#f59e42";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      let first = true;
+      for (let xt = 0; xt <= xMax; xt += (xMax-xMin)/800) {
+        const yt = -A * xt * xt + B * xt + y0;
+        if (yt < yMin || yt > yMax) continue;
+        const drawX = (xt - xMin) * scaleX;
+        const drawY = canvas.height - (yt - yMin) * scaleY;
+        if (first) {
+          ctx.moveTo(drawX, drawY);
+          first = false;
+        } else {
+          ctx.lineTo(drawX, drawY);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Mô phỏng chuyển động
+      let t = 0;
+      interval = setInterval(() => {
+        t += 0.03;
+        const xt = vx * t;
+        const yt = y0 + vy * t - 0.5 * g * t * t;
+
+        if (yt < yMin || xt > xMax || yt < 0) {
+          clearInterval(interval);
+          return;
+        }
+
+        const drawX = (xt - xMin) * scaleX;
+        const drawY = canvas.height - (yt - yMin) * scaleY;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = "#2563eb";
+        ctx.shadowColor = "#60a5fa";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.restore();
+      }, 30);
+    }
+
+    function computeY() {
+      if (typeof A === 'undefined') {
+        alert("Hãy bấm Bắt đầu trước!");
+        return;
+      }
+      const xVal = parseFloat(document.getElementById('xValue').value);
+      const yVal = -A * xVal * xVal + B * xVal + y0;
+      document.getElementById('yValue').innerText = `→ y = ${yVal.toFixed(2)} m`;
+
+      // Vẽ điểm trên canvas
+      if (xVal < xMin || xVal > xMax || yVal < yMin || yVal > yMax) return;
+      const drawX = (xVal - xMin) * scaleX;
+      const drawY = canvas.height - (yVal - yMin) * scaleY;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, 6, 0, 2*Math.PI);
+      ctx.fillStyle = "#dc2626";
+      ctx.shadowColor = "#fca5a5";
+      ctx.shadowBlur = 15;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Hiện tọa độ điểm khi nhấp
+    canvas.addEventListener('click', (e) => {
+      if (typeof scaleX === 'undefined') return;
+      const rect = canvas.getBoundingClientRect();
+      const xPixel = e.clientX - rect.left;
+      const yPixel = e.clientY - rect.top;
+      const xReal = xMin + xPixel / scaleX;
+      const yReal = yMin + (canvas.height - yPixel) / scaleY;
+      document.getElementById('clickInfo').innerHTML = `<span class="text-gray-600">Tọa độ bạn vừa chọn:</span> <span class="font-mono">(${xReal.toFixed(2)}, ${yReal.toFixed(2)})</span>`;
+    });
+
+    // Responsive canvas width
+    function resizeCanvas() {
+      const wrapper = document.querySelector('.relative');
+      if (!wrapper) return;
+      let width = Math.min(wrapper.offsetWidth, 800);
+      let height = Math.round(width * 420 / 800);
+      canvas.width = width;
+      canvas.height = height;
+      if (typeof angle !== 'undefined') startSimulation();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+
+  </script>
+</body>
+</html>
